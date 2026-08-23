@@ -1,0 +1,348 @@
+// ============================================================================
+// COMPLIANCE SUITE - Esquema de base de datos
+// Modulo activo en esta version: Seleccion de Proveedores
+// Diseñado para crecer con futuros modulos (SARLAFT, BASC, Auditorias, etc.)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// SEGURIDAD Y USUARIOS
+// ----------------------------------------------------------------------------
+
+enum RolUsuario {
+  ADMINISTRADOR
+  RESPONSABLE_SELECCION
+  CONSULTA
+}
+
+model Usuario {
+  id           String     @id @default(cuid())
+  nombre       String
+  correo       String     @unique
+  cargo        String?
+  passwordHash String
+  rol          RolUsuario @default(RESPONSABLE_SELECCION)
+  activo       Boolean    @default(true)
+  creadoAt     DateTime   @default(now())
+  actualizadoAt DateTime  @updatedAt
+  ultimoLoginAt DateTime?
+
+  procesosCreados      ProcesoSeleccion[] @relation("ProcesoCreadoPor")
+  procesosActualizados ProcesoSeleccion[] @relation("ProcesoActualizadoPor")
+  procesosCerrados     ProcesoSeleccion[] @relation("ProcesoCerradoPor")
+  calificaciones       Calificacion[]     @relation("CalificacionPor")
+  documentosSubidos    Documento[]        @relation("DocumentoSubidoPor")
+  informesGenerados    Informe[]          @relation("InformeGeneradoPor")
+  eventosAuditoria     EventoAuditoria[]  @relation("EventoUsuario")
+  criteriosModificados CriterioHistorial[] @relation("CriterioModificadoPor")
+
+  @@map("usuarios")
+}
+
+// ----------------------------------------------------------------------------
+// CONFIGURACION DEL MODULO (editable sin tocar codigo)
+// ----------------------------------------------------------------------------
+
+// Listas configurables reutilizables (tipos de proveedor, categorias, monedas, etc.)
+enum TipoListaConfigurable {
+  TIPO_PROVEEDOR
+  CATEGORIA_PRODUCTO_SERVICIO
+  MONEDA
+}
+
+model OpcionConfigurable {
+  id       String                @id @default(cuid())
+  lista    TipoListaConfigurable
+  valor    String
+  orden    Int                   @default(0)
+  activo   Boolean               @default(true)
+
+  @@unique([lista, valor])
+  @@map("opciones_configurables")
+}
+
+// Criterios ponderados de la matriz de seleccion. Configurable por Administrador.
+model CriterioEvaluacion {
+  id                String   @id @default(cuid())
+  nombre            String
+  descripcion       String?
+  peso              Decimal  @db.Decimal(5, 2) // porcentaje, ej 20.00
+  orden             Int      @default(0)
+  activo            Boolean  @default(true)
+
+  // Guias de calificacion mostradas al evaluador (configurables, no fijas en codigo)
+  guia5             String   @db.Text // Excelente / condicion favorable
+  guia3             String   @db.Text // Aceptable / condicion intermedia
+  guia1             String   @db.Text // Desfavorable / condicion no favorable
+
+  creadoAt          DateTime @default(now())
+  actualizadoAt     DateTime @updatedAt
+
+  calificaciones    Calificacion[]
+  historial         CriterioHistorial[]
+
+  @@map("criterios_evaluacion")
+}
+
+// Historial de cambios de configuracion de criterios (trazabilidad de configuracion)
+model CriterioHistorial {
+  id               String   @id @default(cuid())
+  criterioId       String
+  criterio         CriterioEvaluacion @relation(fields: [criterioId], references: [id], onDelete: Cascade)
+  campoModificado  String
+  valorAnterior    String?  @db.Text
+  valorNuevo       String?  @db.Text
+  modificadoPorId  String
+  modificadoPor    Usuario  @relation("CriterioModificadoPor", fields: [modificadoPorId], references: [id])
+  modificadoAt     DateTime @default(now())
+
+  @@map("criterios_historial")
+}
+
+// Consecutivos por año para el codigo del proceso: SEL-2026-0001
+model Consecutivo {
+  id           String @id @default(cuid())
+  prefijo      String @default("SEL")
+  anio         Int
+  ultimoValor  Int    @default(0)
+
+  @@unique([prefijo, anio])
+  @@map("consecutivos")
+}
+
+// Parametros generales del sistema (ej: tolerancia de ponderacion, nombre/logo empresa)
+model ParametroSistema {
+  clave         String   @id
+  valor         String   @db.Text
+  descripcion   String?
+  actualizadoAt DateTime @updatedAt
+
+  @@map("parametros_sistema")
+}
+
+// ----------------------------------------------------------------------------
+// PROCESO DE SELECCION DE PROVEEDORES
+// ----------------------------------------------------------------------------
+
+enum EstadoProceso {
+  BORRADOR
+  EN_DILIGENCIAMIENTO
+  PENDIENTE_REVISION
+  APROBADA
+  CERRADA
+}
+
+model ProcesoSeleccion {
+  id                    String        @id @default(cuid())
+  codigo                String        @unique // SEL-2026-0001
+
+  fecha                 DateTime
+  areaSolicitante        String
+  responsableNombre      String
+  responsableCargo       String
+  tipoProveedor          String
+  categoria              String
+  descripcionNecesidad   String        @db.Text
+  observacionesGenerales String?       @db.Text
+
+  estado                 EstadoProceso @default(BORRADOR)
+  archivado               Boolean       @default(false)
+
+  // Resultado / seleccion final (seccion 11 y 12 del brief)
+  proveedorMayorPuntajeId String?
+  proveedorSeleccionadoId String?
+  justificacionSeleccion  String?      @db.Text
+  motivoSiNoMayorPuntaje  String?      @db.Text
+  observacionesFinales    String?      @db.Text
+
+  // Excepcion administrativa para cerrar con ponderacion distinta de 100%
+  cierreConExcepcion         Boolean   @default(false)
+  cierreExcepcionAutorizadoPorId String?
+  cierreExcepcionMotivo      String?   @db.Text
+
+  // Trazabilidad de autoria
+  creadoPorId    String
+  creadoPor      Usuario   @relation("ProcesoCreadoPor", fields: [creadoPorId], references: [id])
+  creadoAt       DateTime  @default(now())
+
+  actualizadoPorId String?
+  actualizadoPor   Usuario? @relation("ProcesoActualizadoPor", fields: [actualizadoPorId], references: [id])
+  actualizadoAt    DateTime @updatedAt
+
+  cerradoPorId   String?
+  cerradoPor     Usuario?  @relation("ProcesoCerradoPor", fields: [cerradoPorId], references: [id])
+  cerradoAt      DateTime?
+
+  proveedores    Proveedor[]
+  calificaciones Calificacion[]
+  documentos     Documento[]
+  informes       Informe[]
+  eventos        EventoAuditoria[]
+
+  @@map("procesos_seleccion")
+  @@index([estado])
+  @@index([archivado])
+}
+
+model Proveedor {
+  id            String  @id @default(cuid())
+  procesoId     String
+  proceso       ProcesoSeleccion @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+
+  // Informacion general
+  razonSocial       String
+  nit                String
+  nombreComercial    String?
+  nombreContacto     String?
+  cargoContacto      String?
+  telefono           String?
+  correo             String?
+  ciudad             String?
+  direccion          String?
+  paginaWeb          String?
+  tiempoMercado      String?
+  productoServicio   String  @db.Text
+
+  // Informacion comercial
+  valorCotizacion        Decimal? @db.Decimal(18, 2)
+  moneda                 String?  @default("COP")
+  condicionesComerciales String?  @db.Text
+  formaPagoPropuesta     String?
+  descuentosOfrecidos    String?
+  observacionesComerciales String? @db.Text
+
+  // Informacion adicional
+  certificacionCalidad     Boolean @default(false)
+  certificacionAmbiental   Boolean @default(false)
+  certificacionSST         Boolean @default(false)
+  otrasCertificaciones     String?
+  observacionesAdicionales String? @db.Text
+
+  creadoAt      DateTime @default(now())
+  actualizadoAt DateTime @updatedAt
+
+  calificaciones Calificacion[]
+  documentos     Documento[]
+
+  @@map("proveedores")
+  @@unique([procesoId, nit])
+  @@index([procesoId])
+}
+
+// Calificacion manual del evaluador para un criterio y un proveedor.
+// El evaluador SOLO asigna 5/3/1 y observacion. El resultadoPonderado
+// se calcula y almacena en backend (nunca se confia en el valor del navegador).
+model Calificacion {
+  id           String   @id @default(cuid())
+  procesoId    String
+  proceso      ProcesoSeleccion @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  proveedorId  String
+  proveedor    Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  criterioId   String
+  criterio     CriterioEvaluacion @relation(fields: [criterioId], references: [id])
+
+  valor              Int?     // 5, 3 o 1 (null = aun no calificado)
+  resultadoPonderado Decimal? @db.Decimal(6, 3) // calculado en backend = valor/5 * peso
+  pesoAplicado       Decimal? @db.Decimal(5, 2) // snapshot del peso del criterio al momento de calificar
+  observacion        String?  @db.Text
+
+  calificadoPorId String?
+  calificadoPor   Usuario? @relation("CalificacionPor", fields: [calificadoPorId], references: [id])
+  actualizadoAt   DateTime @updatedAt
+  creadoAt        DateTime @default(now())
+
+  @@map("calificaciones")
+  @@unique([procesoId, proveedorId, criterioId])
+  @@index([procesoId])
+  @@index([proveedorId])
+}
+
+// ----------------------------------------------------------------------------
+// GESTION DOCUMENTAL (preparado; carga de soportes se habilita en proxima fase)
+// ----------------------------------------------------------------------------
+
+model Documento {
+  id             String   @id @default(cuid())
+  procesoId      String
+  proceso        ProcesoSeleccion @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  proveedorId    String?
+  proveedor      Proveedor? @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+
+  nombreOriginal String
+  tipoArchivo    String
+  tamanoBytes    Int
+  bucket         String
+  storageKey     String   // referencia segura al objeto en el storage S3-compatible
+  checksum       String?
+
+  subidoPorId    String
+  subidoPor      Usuario  @relation("DocumentoSubidoPor", fields: [subidoPorId], references: [id])
+  subidoAt       DateTime @default(now())
+
+  @@map("documentos")
+  @@index([procesoId])
+  @@index([proveedorId])
+}
+
+// ----------------------------------------------------------------------------
+// INFORMES GENERADOS (PDF / Excel)
+// ----------------------------------------------------------------------------
+
+enum TipoInforme {
+  PDF
+  EXCEL
+}
+
+model Informe {
+  id             String      @id @default(cuid())
+  procesoId      String
+  proceso        ProcesoSeleccion @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+
+  tipo           TipoInforme
+  version        Int         @default(1)
+  bucket         String
+  storageKey     String
+  tamanoBytes    Int?
+
+  generadoPorId  String
+  generadoPor    Usuario     @relation("InformeGeneradoPor", fields: [generadoPorId], references: [id])
+  generadoAt     DateTime    @default(now())
+
+  @@map("informes")
+  @@index([procesoId])
+}
+
+// ----------------------------------------------------------------------------
+// TRAZABILIDAD / AUDITORIA (obligatoria para auditorias de cumplimiento)
+// ----------------------------------------------------------------------------
+
+model EventoAuditoria {
+  id            String   @id @default(cuid())
+  procesoId     String?
+  proceso       ProcesoSeleccion? @relation(fields: [procesoId], references: [id], onDelete: SetNull)
+
+  entidad       String   // "Proceso" | "Proveedor" | "Calificacion" | "Criterio" | "Informe" | "Documento" | "Usuario"
+  entidadId     String?
+  accion        String   // "CREAR" | "ACTUALIZAR" | "CAMBIO_ESTADO" | "CALIFICAR" | "GENERAR_INFORME" | "DESCARGAR" | "LOGIN" | etc.
+  estadoAnterior String?
+  estadoNuevo    String?
+  detalle        Json?
+
+  usuarioId     String?
+  usuario       Usuario? @relation("EventoUsuario", fields: [usuarioId], references: [id])
+  ip            String?
+  creadoAt      DateTime @default(now())
+
+  @@map("eventos_auditoria")
+  @@index([procesoId])
+  @@index([entidad, entidadId])
+  @@index([creadoAt])
+}

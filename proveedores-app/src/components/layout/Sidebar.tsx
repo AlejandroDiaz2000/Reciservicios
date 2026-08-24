@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -8,7 +9,6 @@ import {
   RefreshCw,
   FolderKanban,
   Settings,
-  ShieldCheck,
   Lock,
 } from "lucide-react";
 import clsx from "clsx";
@@ -34,11 +34,11 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex lg:flex-col w-72 shrink-0 bg-[var(--color-navy-950)] text-slate-200 min-h-screen">
       <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10">
-        <div className="h-9 w-9 rounded-lg bg-[var(--color-navy-700)] flex items-center justify-center">
-          <ShieldCheck className="h-5 w-5 text-amber-400" />
+        <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center p-1 overflow-hidden shrink-0">
+          <Image src="/logo.png" alt="Reciservicios" width={36} height={36} className="h-full w-full object-contain" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-white leading-tight">Compliance Suite</p>
+          <p className="text-sm font-semibold text-white leading-tight">Reciservicios</p>
           <p className="text-xs text-slate-400 leading-tight">Oficial de Cumplimiento</p>
         </div>
       </div>

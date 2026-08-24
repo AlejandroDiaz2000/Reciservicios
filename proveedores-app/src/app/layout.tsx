@@ -7,9 +7,9 @@ import { Providers } from "./providers";
 // de compilación. El resultado visual en dispositivos modernos es equivalente.
 
 export const metadata: Metadata = {
-  title: "Compliance Suite | Selección de Proveedores",
+  title: "Reciservicios | Selección de Proveedores",
   description:
-    "Plataforma empresarial de cumplimiento — módulo de selección de proveedores.",
+    "Reciservicios — plataforma empresarial de cumplimiento, módulo de selección de proveedores.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

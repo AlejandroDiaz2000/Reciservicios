@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import Image from "next/image";
 
 function LoginForm() {
   const router = useRouter();
@@ -41,10 +41,10 @@ function LoginForm() {
     <div className="min-h-screen w-full flex items-center justify-center bg-[var(--color-navy-950)] px-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8 text-slate-100">
-          <div className="h-12 w-12 rounded-xl bg-[var(--color-navy-700)] flex items-center justify-center mb-3">
-            <ShieldCheck className="h-6 w-6 text-amber-400" />
+          <div className="h-16 w-16 rounded-xl bg-white flex items-center justify-center mb-3 p-1.5 overflow-hidden">
+            <Image src="/logo.png" alt="Reciservicios" width={64} height={64} className="h-full w-full object-contain" priority />
           </div>
-          <h1 className="text-xl font-semibold">Compliance Suite</h1>
+          <h1 className="text-xl font-semibold">Reciservicios</h1>
           <p className="text-sm text-slate-400">Gestión de cumplimiento empresarial</p>
         </div>
 

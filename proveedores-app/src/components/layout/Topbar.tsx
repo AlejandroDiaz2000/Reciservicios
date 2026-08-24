@@ -25,7 +25,7 @@ export function Topbar({
           <Menu className="h-5 w-5" />
         </button>
         <span className="text-sm text-slate-400 hidden sm:block">
-          Compliance Suite / Selección de proveedores
+          Reciservicios / Selección de proveedores
         </span>
       </div>
 

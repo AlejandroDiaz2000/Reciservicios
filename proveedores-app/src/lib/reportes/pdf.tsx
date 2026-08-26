@@ -1,31 +1,160 @@
-import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { DatosInforme } from "./tipos";
+import { LOGO_RECISERVICIOS_BASE64 } from "./logo-base64";
+
+// ----------------------------------------------------------------------------
+// Datos del cuadro de control de versión (encabezado del formato).
+// Estos valores describen el FORMATO en sí (como documento de calidad), no el
+// proceso de selección puntual — se actualizan solo cuando se revisa el formato.
+// ----------------------------------------------------------------------------
+const FORMATO_MACROPROCESO = "GESTIÓN DE COMPRAS E INFRAESTRUCTURA";
+const FORMATO_NOMBRE = "FORMATO SELECCIÓN DE PROVEEDORES";
+const FORMATO_VERSION = "01";
+const FORMATO_FECHA = "2026/01/26";
+
+// Paleta de colores solicitada. #70AD47 se usa únicamente para las líneas de
+// los cuadros/tablas; los textos se mantienen siempre en negro.
+const COLOR_LINEA = "#70AD47"; // verde oscuro — líneas de los cuadros
+const COLOR_GRIS = "#C9C9C9"; // gris — fondos de encabezados de tabla
+const COLOR_VERDE_CLARO = "#C5E0B3"; // verde claro — fondos de título/resaltados
+const COLOR_TEXTO = "#000000";
+
+// Nota sobre la tipografía: se usa "Helvetica" porque es la fuente base
+// disponible sin necesidad de incrustar archivos de fuente adicionales, y es
+// visualmente equivalente a Arial (misma familia de letra sin serifas, con
+// métricas muy similares) en el PDF generado.
+const FUENTE = "Helvetica";
 
 const styles = StyleSheet.create({
-  page: { padding: 32, fontSize: 9, fontFamily: "Helvetica", color: "#1a1a1a" },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12, borderBottom: 2, borderColor: "#1e3a5f", paddingBottom: 10 },
-  empresaNombre: { fontSize: 13, fontWeight: 700, color: "#1e3a5f" },
-  empresaNit: { fontSize: 8, color: "#555" },
-  tituloDoc: { fontSize: 14, fontWeight: 700, textAlign: "right", color: "#1e3a5f" },
-  codigoDoc: { fontSize: 9, textAlign: "right", color: "#555" },
-  seccionTitulo: { fontSize: 11, fontWeight: 700, color: "#1e3a5f", marginTop: 16, marginBottom: 6, backgroundColor: "#eef2f7", padding: 4 },
+  page: { padding: 32, fontSize: 9, fontFamily: FUENTE, color: COLOR_TEXTO },
+
+  // Cuadro de control de versión (encabezado)
+  cuadroVersion: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: COLOR_LINEA,
+    marginBottom: 14,
+  },
+  cuadroLogoCelda: {
+    width: "18%",
+    borderRightWidth: 1,
+    borderColor: COLOR_LINEA,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  cuadroLogoImg: { width: 34, height: 34, marginBottom: 3 },
+  cuadroLogoTexto: { fontSize: 8, fontWeight: 700, color: COLOR_TEXTO, textAlign: "center" },
+  cuadroCentro: {
+    width: "52%",
+    borderRightWidth: 1,
+    borderColor: COLOR_LINEA,
+  },
+  cuadroCentroFila: {
+    flex: 1,
+    borderBottomWidth: 1,
+    borderColor: COLOR_LINEA,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  cuadroCentroFilaUltima: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  cuadroMacroproceso: { fontSize: 11, fontWeight: 700, color: COLOR_TEXTO, textAlign: "center" },
+  cuadroFormato: { fontSize: 11, fontWeight: 400, color: COLOR_TEXTO, textAlign: "center" },
+  cuadroDerecha: { width: "30%" },
+  cuadroDerechaFila: {
+    flex: 1,
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderColor: COLOR_LINEA,
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  cuadroDerechaFilaUltima: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  cuadroDerechaLabel: { fontSize: 11, fontWeight: 700, color: COLOR_TEXTO },
+  cuadroDerechaValor: { fontSize: 11, fontWeight: 400, color: COLOR_TEXTO },
+
+  // Resto del documento
+  seccionTitulo: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: COLOR_TEXTO,
+    marginTop: 16,
+    marginBottom: 6,
+    backgroundColor: COLOR_VERDE_CLARO,
+    borderWidth: 1,
+    borderColor: COLOR_LINEA,
+    padding: 4,
+  },
   infoGrid: { flexDirection: "row", flexWrap: "wrap", marginBottom: 4 },
   infoItem: { width: "50%", marginBottom: 3 },
-  infoLabel: { fontSize: 7.5, color: "#666" },
-  infoValor: { fontSize: 9, fontWeight: 700 },
-  parrafo: { fontSize: 9, marginBottom: 4, lineHeight: 1.4 },
-  table: { display: "flex", width: "auto", marginTop: 4, marginBottom: 8 },
+  infoLabel: { fontSize: 7.5, color: COLOR_TEXTO },
+  infoValor: { fontSize: 9, fontWeight: 700, color: COLOR_TEXTO },
+  parrafo: { fontSize: 9, marginBottom: 4, lineHeight: 1.4, color: COLOR_TEXTO },
+  table: { display: "flex", width: "auto", marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: COLOR_LINEA },
   tableRow: { flexDirection: "row" },
-  tableHeaderCell: { backgroundColor: "#1e3a5f", color: "#fff", padding: 4, fontSize: 7.5, fontWeight: 700, borderRight: 1, borderColor: "#fff" },
-  tableCell: { padding: 4, fontSize: 7.5, borderRight: 1, borderBottom: 1, borderColor: "#ddd" },
-  tableCellDestacada: { padding: 4, fontSize: 7.5, borderRight: 1, borderBottom: 1, borderColor: "#ddd", backgroundColor: "#fff6d9", fontWeight: 700 },
+  tableHeaderCell: {
+    backgroundColor: COLOR_GRIS,
+    color: COLOR_TEXTO,
+    padding: 4,
+    fontSize: 7.5,
+    fontWeight: 700,
+    borderRight: 1,
+    borderBottom: 1,
+    borderColor: COLOR_LINEA,
+  },
+  tableCell: { padding: 4, fontSize: 7.5, borderRight: 1, borderBottom: 1, borderColor: COLOR_LINEA, color: COLOR_TEXTO },
+  tableCellDestacada: {
+    padding: 4,
+    fontSize: 7.5,
+    borderRight: 1,
+    borderBottom: 1,
+    borderColor: COLOR_LINEA,
+    backgroundColor: COLOR_VERDE_CLARO,
+    fontWeight: 700,
+    color: COLOR_TEXTO,
+  },
   proveedorBloque: { marginBottom: 10, break: false },
-  proveedorNombre: { fontSize: 10, fontWeight: 700, marginBottom: 2, color: "#1e3a5f" },
-  resaltado: { backgroundColor: "#eaf6ec", padding: 8, borderRadius: 2, marginTop: 4, marginBottom: 8 },
-  resaltadoTitulo: { fontSize: 9, fontWeight: 700, color: "#1c6b34" },
-  firmaBloque: { width: "31%", borderTop: 1, borderColor: "#999", paddingTop: 4, marginTop: 40 },
-  firmaLabel: { fontSize: 8, color: "#555" },
-  footer: { position: "absolute", bottom: 20, left: 32, right: 32, fontSize: 7, color: "#999", textAlign: "center", borderTop: 1, borderColor: "#ddd", paddingTop: 4 },
+  proveedorNombre: { fontSize: 10, fontWeight: 700, marginBottom: 2, color: COLOR_TEXTO },
+  resaltado: {
+    backgroundColor: COLOR_VERDE_CLARO,
+    borderWidth: 1,
+    borderColor: COLOR_LINEA,
+    padding: 8,
+    borderRadius: 2,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  resaltadoTitulo: { fontSize: 9, fontWeight: 700, color: COLOR_TEXTO },
+  firmaBloque: { width: "31%", borderTop: 1, borderColor: COLOR_LINEA, paddingTop: 4, marginTop: 40 },
+  firmaLabel: { fontSize: 8, color: COLOR_TEXTO },
+  footer: {
+    position: "absolute",
+    bottom: 20,
+    left: 32,
+    right: 32,
+    fontSize: 7,
+    color: COLOR_TEXTO,
+    textAlign: "center",
+    borderTop: 1,
+    borderColor: COLOR_LINEA,
+    paddingTop: 4,
+  },
 });
 
 function fila(label: string, valor: string) {
@@ -33,6 +162,43 @@ function fila(label: string, valor: string) {
     <View style={styles.infoItem}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValor}>{valor || "-"}</Text>
+    </View>
+  );
+}
+
+/** Cuadro de control de versión del formato, replicando el encabezado corporativo. */
+function CuadroVersion({ codigoProceso }: { codigoProceso: string }) {
+  return (
+    <View style={styles.cuadroVersion}>
+      <View style={styles.cuadroLogoCelda}>
+        <Image src={LOGO_RECISERVICIOS_BASE64} style={styles.cuadroLogoImg} />
+        <Text style={styles.cuadroLogoTexto}>RECISERVICIOS</Text>
+      </View>
+      <View style={styles.cuadroCentro}>
+        <View style={styles.cuadroCentroFila}>
+          <Text style={styles.cuadroMacroproceso}>MACROPROCESO: {FORMATO_MACROPROCESO}</Text>
+        </View>
+        <View style={styles.cuadroCentroFilaUltima}>
+          <Text style={styles.cuadroFormato}>{FORMATO_NOMBRE}</Text>
+        </View>
+      </View>
+      <View style={styles.cuadroDerecha}>
+        <View style={styles.cuadroDerechaFila}>
+          <Text style={styles.cuadroDerechaLabel}>VERSIÓN: </Text>
+          <Text style={styles.cuadroDerechaValor}>{FORMATO_VERSION}</Text>
+        </View>
+        <View style={styles.cuadroDerechaFila}>
+          <Text style={styles.cuadroDerechaLabel}>FECHA: </Text>
+          <Text style={styles.cuadroDerechaValor}>{FORMATO_FECHA}</Text>
+        </View>
+        <View style={styles.cuadroDerechaFilaUltima}>
+          <Text style={styles.cuadroDerechaLabel}>PÁGINA: </Text>
+          <Text
+            style={styles.cuadroDerechaValor}
+            render={({ pageNumber, totalPages }) => `${pageNumber} de ${totalPages}`}
+          />
+        </View>
+      </View>
     </View>
   );
 }
@@ -47,17 +213,12 @@ export function InformeSeleccionPDF({ datos }: { datos: DatosInforme }) {
       author={datos.empresa.nombre}
     >
       <Page size="A4" style={styles.page} wrap>
-        {/* Encabezado */}
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.empresaNombre}>{datos.empresa.nombre}</Text>
-            {datos.empresa.nit ? <Text style={styles.empresaNit}>NIT {datos.empresa.nit}</Text> : null}
-          </View>
-          <View>
-            <Text style={styles.tituloDoc}>Evaluación y Selección de Proveedores</Text>
-            <Text style={styles.codigoDoc}>Código: {datos.proceso.codigo}</Text>
-            <Text style={styles.codigoDoc}>Fecha: {datos.proceso.fecha}</Text>
-          </View>
+        {/* Cuadro de control de versión (encabezado) */}
+        <CuadroVersion codigoProceso={datos.proceso.codigo} />
+
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+          <Text style={{ fontSize: 9, fontWeight: 700 }}>Código del proceso: {datos.proceso.codigo}</Text>
+          <Text style={{ fontSize: 9 }}>Fecha del proceso: {datos.proceso.fecha}</Text>
         </View>
 
         {/* Información general del proceso */}
@@ -134,7 +295,7 @@ export function InformeSeleccionPDF({ datos }: { datos: DatosInforme }) {
               {p.calificaciones.map((c) =>
                 c.observacion ? (
                   <View key={`obs-${c.criterioId}`} style={styles.tableRow}>
-                    <Text style={[styles.tableCell, { width: "100%", fontStyle: "italic", color: "#555" }]}>
+                    <Text style={[styles.tableCell, { width: "100%", fontStyle: "italic", color: COLOR_TEXTO }]}>
                       {datos.criterios.find((cr) => cr.id === c.criterioId)?.nombre}: {c.observacion}
                     </Text>
                   </View>

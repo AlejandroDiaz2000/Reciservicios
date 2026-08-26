@@ -44,8 +44,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 4,
   },
-  cuadroLogoImg: { width: 34, height: 34, marginBottom: 3 },
-  cuadroLogoTexto: { fontSize: 8, fontWeight: 700, color: COLOR_TEXTO, textAlign: "center" },
+  cuadroLogoImg: { width: 44, height: 44 },
   cuadroCentro: {
     width: "52%",
     borderRightWidth: 1,
@@ -141,20 +140,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   resaltadoTitulo: { fontSize: 9, fontWeight: 700, color: COLOR_TEXTO },
-  firmaBloque: { width: "31%", borderTop: 1, borderColor: COLOR_LINEA, paddingTop: 4, marginTop: 40 },
-  firmaLabel: { fontSize: 8, color: COLOR_TEXTO },
-  footer: {
-    position: "absolute",
-    bottom: 20,
-    left: 32,
-    right: 32,
-    fontSize: 7,
-    color: COLOR_TEXTO,
-    textAlign: "center",
-    borderTop: 1,
-    borderColor: COLOR_LINEA,
-    paddingTop: 4,
-  },
 });
 
 function fila(label: string, valor: string) {
@@ -166,13 +151,14 @@ function fila(label: string, valor: string) {
   );
 }
 
-/** Cuadro de control de versión del formato, replicando el encabezado corporativo. */
-function CuadroVersion({ codigoProceso }: { codigoProceso: string }) {
+/** Cuadro de control de versión del formato, replicando el encabezado corporativo.
+ *  Se marca como `fixed` para que se repita automáticamente en cada página generada,
+ *  con el número de página actualizado en cada una. */
+function CuadroVersion() {
   return (
-    <View style={styles.cuadroVersion}>
+    <View style={styles.cuadroVersion} fixed>
       <View style={styles.cuadroLogoCelda}>
         <Image src={LOGO_RECISERVICIOS_BASE64} style={styles.cuadroLogoImg} />
-        <Text style={styles.cuadroLogoTexto}>RECISERVICIOS</Text>
       </View>
       <View style={styles.cuadroCentro}>
         <View style={styles.cuadroCentroFila}>
@@ -196,6 +182,7 @@ function CuadroVersion({ codigoProceso }: { codigoProceso: string }) {
           <Text
             style={styles.cuadroDerechaValor}
             render={({ pageNumber, totalPages }) => `${pageNumber} de ${totalPages}`}
+            fixed
           />
         </View>
       </View>
@@ -213,17 +200,13 @@ export function InformeSeleccionPDF({ datos }: { datos: DatosInforme }) {
       author={datos.empresa.nombre}
     >
       <Page size="A4" style={styles.page} wrap>
-        {/* Cuadro de control de versión (encabezado) */}
-        <CuadroVersion codigoProceso={datos.proceso.codigo} />
-
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
-          <Text style={{ fontSize: 9, fontWeight: 700 }}>Código del proceso: {datos.proceso.codigo}</Text>
-          <Text style={{ fontSize: 9 }}>Fecha del proceso: {datos.proceso.fecha}</Text>
-        </View>
+        {/* Cuadro de control de versión (encabezado, se repite en cada página) */}
+        <CuadroVersion />
 
         {/* Información general del proceso */}
         <Text style={styles.seccionTitulo}>1. Información general del proceso</Text>
         <View style={styles.infoGrid}>
+          {fila("Fecha", datos.proceso.fecha)}
           {fila("Área solicitante", datos.proceso.areaSolicitante)}
           {fila("Responsable de la selección", `${datos.proceso.responsableNombre} - ${datos.proceso.responsableCargo}`)}
           {fila("Tipo de proveedor", datos.proceso.tipoProveedor)}
@@ -366,27 +349,6 @@ export function InformeSeleccionPDF({ datos }: { datos: DatosInforme }) {
           </>
         ) : null}
 
-        {/* Firmas */}
-        <Text style={styles.seccionTitulo} break>
-          6. Firmas
-        </Text>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 30 }}>
-          {["Elaboró", "Revisó", "Aprobó"].map((rol) => (
-            <View key={rol} style={styles.firmaBloque}>
-              <Text style={styles.firmaLabel}>{rol}</Text>
-              <Text style={styles.firmaLabel}>Nombre: ___________________________</Text>
-              <Text style={styles.firmaLabel}>Cargo: ____________________________</Text>
-              <Text style={styles.firmaLabel}>Fecha: ____________________________</Text>
-              <Text style={styles.firmaLabel}>Firma: ____________________________</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={styles.footer} fixed>
-          Documento generado automáticamente por el sistema el {new Date(datos.generadoAt).toLocaleString("es-CO")} por{" "}
-          {datos.generadoPor} — Versión {datos.version} — Este documento constituye evidencia del proceso de
-          selección de proveedores y puede ser utilizado en auditorías internas o externas.
-        </Text>
       </Page>
     </Document>
   );

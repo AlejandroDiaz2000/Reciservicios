@@ -289,9 +289,7 @@ export function InformeSeleccionPDF({ datos }: { datos: DatosInforme }) {
         ))}
 
         {/* Comparativo */}
-        <Text style={styles.seccionTitulo} break>
-          4. Comparativo de proveedores
-        </Text>
+        <Text style={styles.seccionTitulo}>4. Comparativo de proveedores</Text>
         <View style={styles.table}>
           <View style={styles.tableRow}>
             <Text style={[styles.tableHeaderCell, { width: "10%" }]}>Posición</Text>
